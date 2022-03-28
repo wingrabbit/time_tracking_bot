@@ -4,6 +4,7 @@ import datetime
 import sqlite3
 from params import *
 from dao import *
+from util import *
 
 bot = telebot.TeleBot(token)
 
@@ -170,7 +171,7 @@ def getmonthlytasksresults(call):
     for task in tasks:
         result = result + 'Task: '+ str(task[4]) +', date: '+ str(task[2])[:10] + ', time spent: ' +str(task[6])+'\n \n'
         total_time_spent+=int(task[6])
-    result+='Total time spent: '+str(total_time_spent)
+    result+='Total time spent: '+seconds_to_hours(total_time_spent)
     bot.send_message(call.message.chat.id, result)
 
 @bot.message_handler(content_types=['text'])
