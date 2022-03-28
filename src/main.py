@@ -1,5 +1,6 @@
 import telebot
 from telebot import types
+import datetime
 import sqlite3
 from params import *
 from dao import *
@@ -37,10 +38,12 @@ def control_message(message):
     btn_select_active_project = types.InlineKeyboardButton(text='Select active project', callback_data='selectactiveproject')
     btn_add_project = types.InlineKeyboardButton(text='Add a project', callback_data='addproject')
     btn_add_customer = types.InlineKeyboardButton(text='Add a customer', callback_data='addcustomer')
+    btn_get_monthly_task = types.InlineKeyboardButton(text='Get tasks for a month', callback_data='getstats')
     keyboard.row(btn_start, btn_end)
     keyboard.row(btn_select_active_project)
     keyboard.row(btn_add_customer)
     keyboard.row(btn_add_project)
+    keyboard.row(btn_get_monthly_task)
     bot.send_message(message.chat.id, text_to_send, reply_markup=keyboard)
 
 
@@ -129,6 +132,46 @@ def call_back_active_project(call):
     set_active_project(call.data.split('_')[1], call.data.split('_')[2])
     bot.send_message(call.message.chat.id, "The project has been set as active")
 
+
+@bot.callback_query_handler(func=lambda call: 'getstats' in call.data)
+def getmonthlytasks(call):
+    #bot.send_message(call.message.chat.id, "Please, pick the month")
+
+    year = int(datetime.date.today().strftime("%Y"))
+    months = []
+    for i in range(1, int(datetime.date.today().strftime("%m"))+1):
+        month = str(i)
+        if i < 10:
+            month = '0'+month
+        months.append([month, str(year)])
+    if len(months)<6:
+        for i in range((12-6-len(months)), 13):
+            month = str(i)
+            if i < 10:
+                month = '0' + month
+            months.insert(0, [month, str(year-1)])
+
+    keyboard = types.InlineKeyboardMarkup()
+    for row in months:
+        month = row[0]
+        year = row[1]
+        button_text = year + ', '+month
+        keyboard.add(types.InlineKeyboardButton(
+            text=button_text, callback_data='getmonthlytasksresults_{}_{}_{}'.format(call.from_user.id, month, year)))
+    bot.send_message(call.message.chat.id,
+                     "Please select a month to check the stats",
+                     reply_markup=keyboard)
+
+@bot.callback_query_handler(func=lambda call: 'getmonthlytasksresults_' in call.data)
+def getmonthlytasksresults(call):
+    tasks = get_monthly_projects(call.data.split('_')[1], call.data.split('_')[2], call.data.split('_')[3])
+    result = ''
+    total_time_spent = 0
+    for task in tasks:
+        result = result + 'Task: '+ str(task[4]) +', date: '+ str(task[2])[:10] + ', time spent: ' +str(task[6])+'\n \n'
+        total_time_spent+=int(task[6])
+    result+='Total time spent: '+str(total_time_spent)
+    bot.send_message(call.message.chat.id, result)
 
 @bot.message_handler(content_types=['text'])
 def get_text_message(message):
