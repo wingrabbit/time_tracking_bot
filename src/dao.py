@@ -86,5 +86,4 @@ def finish_active_task(user_id: int, description: str):
 
 
 def get_monthly_projects(user_id: int, month: str, year: str):
-    #query = "SELECT id, user_id, start, finish, description, project_id, ROUND((JULIANDAY(finish) - JULIANDAY(start)) * 86400) AS difference FROM records WHERE user_id={} and strftime(\'%m\', start)={} and strftime(\'%Y\', start)={}".format(user_id, month, year)
     return cursor.execute("SELECT id, user_id, start, finish, description, project_id, ROUND((JULIANDAY(finish) - JULIANDAY(start)) * 86400) AS difference FROM records WHERE user_id={} and strftime('%m', start)='{}' and strftime('%Y', start)='{}'".format(user_id, month, year))

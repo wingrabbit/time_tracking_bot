@@ -29,7 +29,7 @@ def button_message(message):
 
 @bot.message_handler(commands=['control'])
 def control_message(message):
-    text_to_send = "What's up?"
+    text_to_send = "\U0001F984 What's up?"
     if user_has_active_record(message.from_user.id):
         text_to_send += "\nYou have an active task started at "
         text_to_send += get_active_task_start_time(message.from_user.id)
@@ -136,8 +136,6 @@ def call_back_active_project(call):
 
 @bot.callback_query_handler(func=lambda call: 'getstats' in call.data)
 def getmonthlytasks(call):
-    #bot.send_message(call.message.chat.id, "Please, pick the month")
-
     year = int(datetime.date.today().strftime("%Y"))
     months = []
     for i in range(1, int(datetime.date.today().strftime("%m"))+1):
@@ -169,9 +167,16 @@ def getmonthlytasksresults(call):
     result = ''
     total_time_spent = 0
     for task in tasks:
-        result = result + 'Task: '+ str(task[4]) +', date: '+ str(task[2])[:10] + ', time spent: ' +str(task[6])+'\n \n'
-        total_time_spent+=int(task[6])
-    result+='Total time spent: '+seconds_to_hours(total_time_spent)
+        #result = result + 'Task: '+ str(task[4]) +', date: '+ str(task[2])[:10] + ', time spent: ' +str(task[6])
+        result = result + "\U0001F984 "+ str(task[4])+"\n"+"\U0001F31C " + str(task[2])[8:10] + "."+ str(task[2])[5:7] +"\n"+"\U000023F1 " #+ str(task[6])
+
+        if task[6] is not None:
+            total_time_spent+=int(task[6])
+            result+=seconds_to_hours(int(task[6]))
+        else:
+            result+= ' (still in progress)'
+        result+='\n \n'
+    result+='\U0001F3DE '+seconds_to_hours(total_time_spent)
     bot.send_message(call.message.chat.id, result)
 
 @bot.message_handler(content_types=['text'])
