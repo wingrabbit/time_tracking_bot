@@ -1,3 +1,7 @@
+import base64
+import io
+
+import requests
 import telebot
 from telebot import types
 import datetime
@@ -5,6 +9,7 @@ import sqlite3
 from params import *
 from dao import *
 from util import *
+from PIL import Image
 
 bot = telebot.TeleBot(token)
 
@@ -40,11 +45,13 @@ def control_message(message):
     btn_add_project = types.InlineKeyboardButton(text='Add a project', callback_data='addproject')
     btn_add_customer = types.InlineKeyboardButton(text='Add a customer', callback_data='addcustomer')
     btn_get_monthly_task = types.InlineKeyboardButton(text='Get tasks for a month', callback_data='getstats')
+    btn_get_monthly_task_with_pictures = types.InlineKeyboardButton(text='Get tasks for a month (pictures)', callback_data='getpicturestats')
     keyboard.row(btn_start, btn_end)
     keyboard.row(btn_select_active_project)
     keyboard.row(btn_add_customer)
     keyboard.row(btn_add_project)
     keyboard.row(btn_get_monthly_task)
+    keyboard.row(btn_get_monthly_task_with_pictures)
     bot.send_message(message.chat.id, text_to_send, reply_markup=keyboard)
 
 
@@ -71,8 +78,18 @@ def call_back_endtask(call):
 
 
 def finish_task(call):
-    finish_active_task(call.from_user.id, call.text)
-    bot.send_message(call.chat.id, "The record has been stopped")
+    if call.content_type == 'text':
+        finish_active_task(call.from_user.id, call.text)
+        bot.send_message(call.chat.id, "The record has been stopped")
+    elif call.content_type == 'photo':
+        finish_active_task(call.from_user.id, call.caption)
+        file_id = call.photo[-1].file_id
+        file = bot.get_file(file_id)
+        photo_url = "https://api.telegram.org/file/bot"+token+"/"+file.file_path
+        data = requests.get(photo_url)
+        encoded = base64.b64encode(data.content)
+        save_photo(call.from_user.id, encoded)
+        bot.send_message(call.chat.id, "The record has been stopped (image added to the database)")
 
 
 @bot.callback_query_handler(func=lambda call: 'addcustomer' in call.data)
@@ -136,20 +153,7 @@ def call_back_active_project(call):
 
 @bot.callback_query_handler(func=lambda call: 'getstats' in call.data)
 def getmonthlytasks(call):
-    year = int(datetime.date.today().strftime("%Y"))
-    months = []
-    for i in range(1, int(datetime.date.today().strftime("%m"))+1):
-        month = str(i)
-        if i < 10:
-            month = '0'+month
-        months.append([month, str(year)])
-    if len(months)<6:
-        for i in range((12-6-len(months)), 13):
-            month = str(i)
-            if i < 10:
-                month = '0' + month
-            months.insert(0, [month, str(year-1)])
-
+    months = get_six_months()
     keyboard = types.InlineKeyboardMarkup()
     for row in months:
         month = row[0]
@@ -178,6 +182,46 @@ def getmonthlytasksresults(call):
         result+='\n \n'
     result+='\U0001F3DE '+seconds_to_hours(total_time_spent)
     bot.send_message(call.message.chat.id, result)
+
+
+@bot.callback_query_handler(func=lambda call: 'getpicturestats' in call.data)
+def getmonthlytaskswithpictures(call):
+    months = get_six_months()
+    keyboard = types.InlineKeyboardMarkup()
+    for row in months:
+        month = row[0]
+        year = row[1]
+        button_text = year + ', '+month
+        keyboard.add(types.InlineKeyboardButton(
+            text=button_text, callback_data='getmonthlytasksresultswithpictures_{}_{}_{}'.format(call.from_user.id, month, year)))
+    bot.send_message(call.message.chat.id,
+                     "Please select a month to check the stats",
+                     reply_markup=keyboard)
+
+
+@bot.callback_query_handler(func=lambda call: 'getmonthlytasksresultswithpictures_' in call.data)
+def getmonthlytasksresultswithpictures(call):
+    tasks = get_monthly_projects_with_images(call.data.split('_')[1], call.data.split('_')[2], call.data.split('_')[3])
+    keyboard = types.InlineKeyboardMarkup()
+    for task in tasks:
+        #result = result + 'Task: '+ str(task[4]) +', date: '+ str(task[2])[:10] + ', time spent: ' +str(task[6])
+        task_id = str(task[0])
+        description = str(task[1])
+        keyboard.add(types.InlineKeyboardButton(
+            text=description,
+            callback_data='showpicture_{}'.format(task_id)))
+    bot.send_message(call.message.chat.id,
+                     "Please select a task to see the picture",
+                     reply_markup=keyboard)
+
+@bot.callback_query_handler(func=lambda call: 'showpicture_' in call.data)
+def getpicture(call):
+    record_id = call.data.split('_')[1]
+    img = get_task_image(int(record_id))
+    for data in img:
+        #print(data[0].replace('b\'', '').replace('=\'', ''))
+        bot.send_photo(call.message.chat.id, base64.b64decode(data[0]))
+
 
 @bot.message_handler(content_types=['text'])
 def get_text_message(message):

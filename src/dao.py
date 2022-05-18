@@ -84,6 +84,20 @@ def finish_active_task(user_id: int, description: str):
     cursor.execute('UPDATE records SET finish=DATETIME(CURRENT_TIMESTAMP, \'-5 hours\'), description=\'{}\' WHERE user_id={} and finish IS NULL;'.format(description, user_id))
     conn.commit()
 
+def save_photo(user_id, photo_data):
+    cursor.execute('INSERT INTO images (record_id, content) VALUES((SELECT id FROM records WHERE user_id = ? ORDER BY id DESC LIMIT 1), ?)',
+        (user_id, photo_data))
+    conn.commit()
+
 
 def get_monthly_projects(user_id: int, month: str, year: str):
     return cursor.execute("SELECT id, user_id, start, finish, description, project_id, ROUND((JULIANDAY(finish) - JULIANDAY(start)) * 86400) AS difference FROM records WHERE user_id={} and strftime('%m', start)='{}' and strftime('%Y', start)='{}'".format(user_id, month, year))
+
+
+
+def get_monthly_projects_with_images(user_id: int, month: str, year: str):
+    return cursor.execute("SELECT r.id, r.description FROM records r INNER JOIN images img on img.record_id=r.id WHERE r.user_id={} and strftime('%m', r.start)='{}' and strftime('%Y', r.start)='{}'".format(user_id, month, year))
+
+
+def get_task_image(record_id: int):
+    return cursor.execute("SELECT content FROM images WHERE record_id={}".format(record_id))
