@@ -6,6 +6,9 @@ import telebot
 from telebot import types
 import datetime
 import sqlite3
+
+from telebot.types import InputMediaPhoto
+
 from params import *
 from dao import *
 from util import *
@@ -221,9 +224,12 @@ def getmonthlytasksresultswithpictures(call):
 def getpicture(call):
     record_id = call.data.split('_')[1]
     img = get_task_image(int(record_id))
+    mediagroup = []
+    capt = ''
     for data in img:
-        bot.send_photo(call.message.chat.id, base64.b64decode(data[0]))
-
+        mediagroup.append(InputMediaPhoto(base64.b64decode(data[0])))
+        #bot.send_photo(call.message.chat.id, base64.b64decode(data[0]))
+    bot.send_media_group(call.message.chat.id, mediagroup)
 
 @bot.callback_query_handler(func=lambda call: 'showallpictures_' in call.data)
 def getallpictures(call):
