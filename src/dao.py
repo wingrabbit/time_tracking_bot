@@ -96,8 +96,12 @@ def get_monthly_projects(user_id: int, month: str, year: str):
 
 
 def get_monthly_projects_with_images(user_id: int, month: str, year: str):
-    return cursor.execute("SELECT r.id, r.description FROM records r INNER JOIN images img on img.record_id=r.id WHERE r.user_id={} and strftime('%m', r.start)='{}' and strftime('%Y', r.start)='{}'".format(user_id, month, year))
+    return cursor.execute("SELECT DISTINCT r.id, r.description FROM records r INNER JOIN images img on img.record_id=r.id WHERE r.user_id={} and strftime('%m', r.start)='{}' and strftime('%Y', r.start)='{}'".format(user_id, month, year))
 
 
 def get_task_image(record_id: int):
     return cursor.execute("SELECT content FROM images WHERE record_id={}".format(record_id))
+
+
+def get_all_monthly_images(user_id: int, month: str, year: str):
+    return cursor.execute("SELECT r.id, r.description, img.content FROM records r INNER JOIN images img on img.record_id=r.id WHERE r.user_id={} and strftime('%m', r.start)='{}' and strftime('%Y', r.start)='{}'".format(user_id, month, year))

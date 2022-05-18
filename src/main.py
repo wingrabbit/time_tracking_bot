@@ -210,6 +210,9 @@ def getmonthlytasksresultswithpictures(call):
         keyboard.add(types.InlineKeyboardButton(
             text=description,
             callback_data='showpicture_{}'.format(task_id)))
+    keyboard.add(types.InlineKeyboardButton(
+        text='Show all',
+        callback_data='showallpictures_{}_{}_{}'.format(call.data.split('_')[1], call.data.split('_')[2], call.data.split('_')[3])))
     bot.send_message(call.message.chat.id,
                      "Please select a task to see the picture",
                      reply_markup=keyboard)
@@ -219,9 +222,25 @@ def getpicture(call):
     record_id = call.data.split('_')[1]
     img = get_task_image(int(record_id))
     for data in img:
-        #print(data[0].replace('b\'', '').replace('=\'', ''))
         bot.send_photo(call.message.chat.id, base64.b64decode(data[0]))
 
+
+@bot.callback_query_handler(func=lambda call: 'showallpictures_' in call.data)
+def getallpictures(call):
+    pictures = get_all_monthly_images(call.data.split('_')[1], call.data.split('_')[2], call.data.split('_')[3])
+    for pic in pictures:
+        bot.send_photo(call.message.chat.id, base64.b64decode(pic[2]), caption=pic[1])
+
+
+@bot.message_handler(content_types=['photo'])
+def add_another_picture(message):
+    file_id = message.photo[-1].file_id
+    file = bot.get_file(file_id)
+    photo_url = "https://api.telegram.org/file/bot" + token + "/" + file.file_path
+    data = requests.get(photo_url)
+    encoded = base64.b64encode(data.content)
+    save_photo(message.from_user.id, encoded)
+    bot.send_message(message.chat.id, "Another picture has been added to the recent task")
 
 @bot.message_handler(content_types=['text'])
 def get_text_message(message):
